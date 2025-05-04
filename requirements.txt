@@ -1,0 +1,3 @@
+git+https://github.com/sunsmarterjie/yolov12.git
+supervision
+opencv-python
