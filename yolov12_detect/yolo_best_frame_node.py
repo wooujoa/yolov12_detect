@@ -29,17 +29,17 @@ class YoloBestFrameNode(Node):
         self.frame_count = 0
         self.got_image = False
 
-        self.get_logger().info("📷 YOLO Best Frame Node Started")
-        self.get_logger().info(f"🟡 Subscribing to image topic: {self.image_topic}")
+        self.get_logger().info("YOLO Best Frame Node Started")
+        self.get_logger().info(f"Subscribing to image topic: {self.image_topic}")
 
         # 타이머로 토픽 상태 체크 (5초마다)
         self.timer = self.create_timer(5.0, self.check_topic_status)
 
     def check_topic_status(self):
         if not self.got_image:
-            self.get_logger().warn(f"⚠️ 아직 이미지 메시지를 수신하지 못했습니다. '{self.image_topic}' 토픽이 퍼블리시되고 있는지 확인하세요.")
+            self.get_logger().warn(f"아직 이미지 메시지를 수신하지 못했습니다. '{self.image_topic}' 토픽이 퍼블리시되고 있는지 확인하세요.")
         else:
-            self.get_logger().info("✅ 이미지 메시지 수신 중입니다. 계속 추론합니다.")
+            self.get_logger().info("이미지 메시지 수신 중입니다. 계속 추론합니다.")
 
     def image_callback(self, msg):
         if self.frame_count >= self.max_frames:
@@ -50,26 +50,26 @@ class YoloBestFrameNode(Node):
         try:
             frame = self.bridge.imgmsg_to_cv2(msg, desired_encoding='bgr8')
         except Exception as e:
-            self.get_logger().error(f"❌ Image conversion failed: {e}")
+            self.get_logger().error(f"Image conversion failed: {e}")
             return
 
         try:
             results = self.model(frame, imgsz=640, device=self.device)[0]
         except Exception as e:
-            self.get_logger().error(f"❌ YOLO 추론 실패: {e}")
+            self.get_logger().error(f"YOLO 추론 실패: {e}")
             return
 
         try:
             detections = sv.Detections.from_ultralytics(results)
         except Exception as e:
-            self.get_logger().error(f"❌ Detection 변환 실패: {e}")
+            self.get_logger().error(f"Detection 변환 실패: {e}")
             return
 
         self.frame_buffer.append(frame.copy())
         self.detection_buffer.append(detections)
         self.frame_count += 1
 
-        self.get_logger().info(f"📦 수신된 프레임: {self.frame_count}/{self.max_frames}")
+        self.get_logger().info(f"수신된 프레임: {self.frame_count}/{self.max_frames}")
 
         if self.frame_count == self.max_frames:
             self.process_best_frame()
@@ -84,7 +84,7 @@ class YoloBestFrameNode(Node):
                 best_index = i
 
         if best_index == -1:
-            self.get_logger().warn("❌ 감지된 객체가 없습니다.")
+            self.get_logger().warn("감지된 객체가 없습니다.")
             return
 
         best_frame = self.frame_buffer[best_index]
@@ -99,7 +99,7 @@ class YoloBestFrameNode(Node):
 
         filename = "best_detection_frame.jpg"
         cv2.imwrite(filename, annotated)
-        self.get_logger().info(f"✅ 최고 프레임 저장 완료: {filename}")
+        self.get_logger().info(f"최고 프레임 저장 완료: {filename}")
 
 
 def main(args=None):
