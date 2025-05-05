@@ -75,12 +75,21 @@ class YoloBestFrameNode(Node):
             self.process_best_frame()
 
     def process_best_frame(self):
-        max_objects = 0
+        CONFIDENCE_THRESHOLD = 0.6  # 필터링할 confidence 임계값
+
+        best_score = -1.0
         best_index = -1
 
         for i, det in enumerate(self.detection_buffer):
-            if len(det) > max_objects:
-                max_objects = len(det)
+            high_conf_indices = det.confidence > CONFIDENCE_THRESHOLD
+            filtered_conf = det.confidence[high_conf_indices]
+
+            if len(filtered_conf) == 0:
+                continue
+
+            avg_confidence = float(filtered_conf.mean())
+            if avg_confidence > best_score:
+                best_score = avg_confidence
                 best_index = i
 
         if best_index == -1:
@@ -89,17 +98,22 @@ class YoloBestFrameNode(Node):
 
         best_frame = self.frame_buffer[best_index]
         best_detections = self.detection_buffer[best_index]
-        best_labels = [self.model.names[int(cls)] for cls in best_detections.class_id]
+
+        filtered_detections = best_detections[best_detections.confidence > CONFIDENCE_THRESHOLD]
+        best_labels = [self.model.names[int(cls)] for cls in filtered_detections.class_id]
 
         box_annotator = sv.BoxAnnotator()
         label_annotator = sv.LabelAnnotator()
 
-        annotated = box_annotator.annotate(scene=best_frame.copy(), detections=best_detections)
-        annotated = label_annotator.annotate(scene=annotated, detections=best_detections, labels=best_labels)
+        annotated = box_annotator.annotate(scene=best_frame.copy(), detections=filtered_detections)
+        annotated = label_annotator.annotate(scene=annotated, detections=filtered_detections, labels=best_labels)
 
         filename = "best_detection_frame.jpg"
         cv2.imwrite(filename, annotated)
-        self.get_logger().info(f"최고 프레임 저장 완료: {filename}")
+
+        self.get_logger().info(
+            f"최고 프레임 저장 완료: {filename} | 신뢰도 {CONFIDENCE_THRESHOLD:.2f}+ 평균: {best_score:.2f} | 객체 수: {len(filtered_detections)}"
+        )
 
 
 def main(args=None):
